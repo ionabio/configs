@@ -1,0 +1,9 @@
+# Ignore plugin directories (they'll be auto-downloaded by lazy.nvim)
+plugin/
+lua/
+
+# Ignore lazy.nvim state
+.lazy.lua
+
+# Ignore LSP logs
+lsp.log
