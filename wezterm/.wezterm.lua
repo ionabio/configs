@@ -121,15 +121,19 @@ end)
 
 config.default_prog = pwsh
 
+-- Reserve bare Alt for GlazeWM. Keep WezTerm management on Ctrl+Shift.
+local wezterm_mods = 'CTRL|SHIFT'
+local wezterm_num_mods = 'CTRL'
+config.disable_default_key_bindings = true
+
 -- Appearance
-config.color_scheme = 'Builtin Dark'
-config.colors = { background = '#000000' }
+config.color_scheme = 'Gruvbox Dark (Gogh)'
 config.font = wezterm.font('JetBrainsMono NF')
 config.font_size = 12
-config.line_height = 1.1
+config.line_height = 1.2
 config.scrollback_lines = 50000
 config.hide_tab_bar_if_only_one_tab = true
-config.window_padding = { left = 8, right = 8, top = 8, bottom = 8 }
+config.window_padding = { left = 10, right = 10, top = 10, bottom = 10 }
 
 -- Launcher menu
 config.launch_menu = {
@@ -141,7 +145,7 @@ config.keys = {
     -- Open selection as file path in neovim
     {
         key = 'o',
-        mods = 'CTRL|ALT',
+        mods = wezterm_mods,
         action = wezterm.action_callback(function(window, pane)
             local success, selection = pcall(function()
                 return window:get_selection_text_for_pane(pane)
@@ -155,36 +159,44 @@ config.keys = {
     },
 
     -- Panes: explicit shells
-    { key = 'h',          mods = 'ALT',        action = wezterm.action.SplitHorizontal { args = pwsh } },
-    { key = 'v',          mods = 'ALT',        action = wezterm.action.SplitVertical { args = pwsh } },
-    { key = 'H',          mods = 'ALT|SHIFT',  action = wezterm.action.SplitHorizontal { args = git_bash, set_environment_variables = git_bash_env } },
-    { key = 'V',          mods = 'ALT|SHIFT',  action = wezterm.action.SplitVertical { args = git_bash, set_environment_variables = git_bash_env } },
+    { key = 'r',          mods = wezterm_mods, action = wezterm.action.SplitHorizontal { args = pwsh } },
+    { key = 'd',          mods = wezterm_mods, action = wezterm.action.SplitVertical { args = pwsh } },
+    { key = 'b',          mods = wezterm_mods, action = wezterm.action.SplitHorizontal { args = git_bash, set_environment_variables = git_bash_env } },
+    { key = 'n',          mods = wezterm_mods, action = wezterm.action.SplitVertical { args = git_bash, set_environment_variables = git_bash_env } },
 
     -- New tabs
-    { key = '1',          mods = 'ALT',        action = wezterm.action.SpawnCommandInNewTab { args = pwsh } },
-    { key = '2',          mods = 'ALT',        action = wezterm.action.SpawnCommandInNewTab { args = git_bash, set_environment_variables = git_bash_env } },
-    { key = 't',          mods = 'ALT',        action = wezterm.action.SpawnTab 'CurrentPaneDomain' },
+    { key = '1',          mods = wezterm_num_mods, action = wezterm.action.SpawnCommandInNewTab { args = pwsh } },
+    { key = '2',          mods = wezterm_num_mods, action = wezterm.action.SpawnCommandInNewTab { args = git_bash, set_environment_variables = git_bash_env } },
+    { key = '3',          mods = wezterm_num_mods, action = wezterm.action.SpawnTab 'CurrentPaneDomain' },
+    { key = 't',          mods = wezterm_mods, action = wezterm.action.SpawnTab 'CurrentPaneDomain' },
 
-    -- Navigate panes with Alt+Arrow
-    { key = 'LeftArrow',  mods = 'ALT',        action = wezterm.action.ActivatePaneDirection 'Left' },
-    { key = 'RightArrow', mods = 'ALT',        action = wezterm.action.ActivatePaneDirection 'Right' },
-    { key = 'UpArrow',    mods = 'ALT',        action = wezterm.action.ActivatePaneDirection 'Up' },
-    { key = 'DownArrow',  mods = 'ALT',        action = wezterm.action.ActivatePaneDirection 'Down' },
+    -- Navigate panes
+    { key = 'h',          mods = wezterm_mods, action = wezterm.action.ActivatePaneDirection 'Left' },
+    { key = 'l',          mods = wezterm_mods, action = wezterm.action.ActivatePaneDirection 'Right' },
+    { key = 'k',          mods = wezterm_mods, action = wezterm.action.ActivatePaneDirection 'Up' },
+    { key = 'j',          mods = wezterm_mods, action = wezterm.action.ActivatePaneDirection 'Down' },
 
     -- Resize panes
-    { key = 'LeftArrow',  mods = 'ALT|SHIFT',  action = wezterm.action.AdjustPaneSize { 'Left', 5 } },
-    { key = 'RightArrow', mods = 'ALT|SHIFT',  action = wezterm.action.AdjustPaneSize { 'Right', 5 } },
-    { key = 'UpArrow',    mods = 'ALT|SHIFT',  action = wezterm.action.AdjustPaneSize { 'Up', 5 } },
-    { key = 'DownArrow',  mods = 'ALT|SHIFT',  action = wezterm.action.AdjustPaneSize { 'Down', 5 } },
+    { key = 'LeftArrow',  mods = wezterm_mods, action = wezterm.action.AdjustPaneSize { 'Left', 5 } },
+    { key = 'RightArrow', mods = wezterm_mods, action = wezterm.action.AdjustPaneSize { 'Right', 5 } },
+    { key = 'UpArrow',    mods = wezterm_mods, action = wezterm.action.AdjustPaneSize { 'Up', 5 } },
+    { key = 'DownArrow',  mods = wezterm_mods, action = wezterm.action.AdjustPaneSize { 'Down', 5 } },
 
     -- Close pane
-    { key = 'w',          mods = 'ALT',        action = wezterm.action.CloseCurrentPane { confirm = true } },
+    { key = 'w',          mods = wezterm_mods, action = wezterm.action.CloseCurrentPane { confirm = true } },
+
+    -- Swap pane with UI selection
+    { key = 's',          mods = wezterm_mods, action = wezterm.action.PaneSelect { mode = 'SwapWithActive' } },
 
     -- Search in scrollback
     { key = 'f',          mods = 'CTRL|SHIFT', action = wezterm.action.Search { CaseInSensitiveString = '' } },
 
+    -- Clipboard
+    { key = 'c',          mods = wezterm_mods, action = wezterm.action.CopyTo 'Clipboard' },
+    { key = 'v',          mods = wezterm_mods, action = wezterm.action.PasteFrom 'Clipboard' },
+
     -- Copy mode
-    { key = 'c',          mods = 'ALT',        action = wezterm.action.ActivateCopyMode },
+    { key = 'm',          mods = wezterm_mods, action = wezterm.action.ActivateCopyMode },
 
     -- Quick scroll
     { key = 'PageUp',     mods = 'SHIFT',      action = wezterm.action.ScrollByPage(-1) },
@@ -193,7 +205,7 @@ config.keys = {
     { key = 'End',        mods = 'SHIFT',      action = wezterm.action.ScrollToBottom },
 
     -- Launcher
-    { key = 'L',          mods = 'CTRL|SHIFT', action = wezterm.action.ShowLauncherArgs { flags = 'LAUNCH_MENU_ITEMS' } },
+    { key = 'p',          mods = wezterm_mods, action = wezterm.action.ShowLauncherArgs { flags = 'LAUNCH_MENU_ITEMS' } },
 }
 
 -- Mouse bindings
