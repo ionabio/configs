@@ -126,7 +126,7 @@ Bare `Alt` is reserved for GlazeWM. WezTerm management bindings use `Ctrl+Shift`
 | `Ctrl+Shift+M` | Activate copy mode |
 | `Shift+PageUp` / `Shift+PageDown` | Scroll by page |
 | `Shift+Home` / `Shift+End` | Scroll to top / bottom |
-| `Ctrl+Shift+P` | Show launcher menu |
+| `Ctrl+Shift+P` | Show command palette |
 | `Ctrl+MiddleClick` | Open selected path in Neovim |
 
 ## GlazeWM Shortcuts

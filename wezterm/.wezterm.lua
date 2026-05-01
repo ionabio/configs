@@ -128,7 +128,7 @@ config.disable_default_key_bindings = true
 
 -- Appearance
 config.color_scheme = 'Gruvbox Dark (Gogh)'
-config.font = wezterm.font('JetBrainsMono NF')
+config.font = wezterm.font('JetBrainsMono Nerd Font')
 config.font_size = 12
 config.line_height = 1.2
 config.scrollback_lines = 50000
@@ -204,8 +204,8 @@ config.keys = {
     { key = 'Home',       mods = 'SHIFT',      action = wezterm.action.ScrollToTop },
     { key = 'End',        mods = 'SHIFT',      action = wezterm.action.ScrollToBottom },
 
-    -- Launcher
-    { key = 'p',          mods = wezterm_mods, action = wezterm.action.ShowLauncherArgs { flags = 'LAUNCH_MENU_ITEMS' } },
+    -- Command palette
+    { key = 'p',          mods = wezterm_mods, action = wezterm.action.ActivateCommandPalette },
 }
 
 -- Mouse bindings
