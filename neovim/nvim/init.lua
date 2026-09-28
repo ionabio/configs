@@ -1,8 +1,8 @@
 -- Neovim Configuration
 -- Bootstrap lazy.nvim plugin manager
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not vim.loop.fs_stat(lazypath) then
-  vim.fn.system({
+if not vim.uv.fs_stat(lazypath) then
+  local output = vim.fn.system({
     "git",
     "clone",
     "--filter=blob:none",
@@ -10,6 +10,9 @@ if not vim.loop.fs_stat(lazypath) then
     "--branch=stable",
     lazypath,
   })
+  if vim.v.shell_error ~= 0 then
+    error("Cannot install lazy.nvim: " .. output)
+  end
 end
 vim.opt.rtp:prepend(lazypath)
 
@@ -27,6 +30,7 @@ vim.opt.expandtab = true      -- Use spaces instead of tabs
 vim.opt.shiftwidth = 4        -- Indent width
 vim.opt.tabstop = 4           -- Tab width
 vim.opt.termguicolors = true  -- True color support
+vim.opt.cursorline = true     -- Highlight current line
 vim.opt.signcolumn = 'yes'    -- Always show sign column
 vim.opt.updatetime = 250      -- Faster completion
 vim.opt.timeoutlen = 300      -- Faster key sequence completion
@@ -71,12 +75,13 @@ require("lazy").setup({
   -- Treesitter for parser installation
   {
     'nvim-treesitter/nvim-treesitter',
+    commit = '568ede7e79172a0fe7c9d631454a97ad968deaf2', -- Tested with Neovim 0.11.
   },
 
   -- Fuzzy finder
   {
     'nvim-telescope/telescope.nvim',
-    tag = 'v0.2.1',  -- Latest stable release with nvim 0.11 support
+    tag = 'v0.2.1',  -- Keep the tested Neovim 0.11-compatible release.
     dependencies = { 'nvim-lua/plenary.nvim' }
   },
 
@@ -88,10 +93,14 @@ require("lazy").setup({
 
   -- Color scheme
   {
-    'folke/tokyonight.nvim',
+    'ellisonleao/gruvbox.nvim',
     priority = 1000,
     config = function()
-      vim.cmd.colorscheme 'tokyonight-night'
+      require("gruvbox").setup({
+        contrast = "hard", -- can be "hard", "soft" or empty string
+      })
+      vim.cmd.colorscheme 'gruvbox'
+      vim.o.background = 'dark'
     end,
   },
 
@@ -104,6 +113,12 @@ require("lazy").setup({
   -- Git integration
   'tpope/vim-fugitive',
   'lewis6991/gitsigns.nvim',
+
+  -- LazyGit integration
+  {
+    'kdheepak/lazygit.nvim',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+  },
 
   -- Autopairs
   'windwp/nvim-autopairs',
@@ -165,13 +180,15 @@ require("lazy").setup({
     'stevearc/conform.nvim',
     opts = {},
   },
+}, {
+  rocks = { enabled = false }, -- No configured plugins require LuaRocks.
 })
 
 -- LSP Configuration
 require('mason').setup()
 require('mason-lspconfig').setup({
   ensure_installed = { 'clangd', 'lua_ls' }, -- Add language servers you need
-  automatic_installation = true,
+  automatic_enable = false, -- Servers are configured and enabled below.
 })
 
 -- LSP keybindings (set when LSP attaches to buffer)
@@ -201,7 +218,21 @@ local on_attach = function(client, bufnr)
 
   -- Clangd specific: switch between header and source
   if client.name == 'clangd' then
-    vim.keymap.set('n', '<leader>h', '<cmd>ClangdSwitchSourceHeader<cr>', opts)
+    vim.keymap.set('n', '<leader>h', function()
+      local bufnr = vim.api.nvim_get_current_buf()
+      local params = vim.lsp.util.make_text_document_params(bufnr)
+      vim.lsp.buf_request(bufnr, 'textDocument/switchSourceHeader', params, function(err, result)
+        if err then
+          vim.notify('Error switching header/source: ' .. tostring(err), vim.log.levels.ERROR)
+          return
+        end
+        if not result then
+          vim.notify('Corresponding file not found', vim.log.levels.WARN)
+          return
+        end
+        vim.cmd.edit(vim.fn.fnameescape(vim.uri_to_fname(result)))
+      end)
+    end, opts)
   end
 end
 
@@ -244,7 +275,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
   end,
 })
 
--- Autocompletion setup
+-- Autocompletion setup with IntelliSense-like experience
 local cmp = require('cmp')
 local luasnip = require('luasnip')
 
@@ -254,14 +285,35 @@ cmp.setup({
       luasnip.lsp_expand(args.body)
     end,
   },
+  window = {
+    completion = cmp.config.window.bordered(),
+    documentation = cmp.config.window.bordered(),
+  },
+  formatting = {
+    format = function(entry, vim_item)
+      -- Add source name
+      vim_item.menu = ({
+        nvim_lsp = '[LSP]',
+        luasnip = '[Snippet]',
+        buffer = '[Buffer]',
+        path = '[Path]',
+      })[entry.source.name]
+      return vim_item
+    end,
+  },
   mapping = cmp.mapping.preset.insert({
     ['<C-d>'] = cmp.mapping.scroll_docs(-4),
     ['<C-f>'] = cmp.mapping.scroll_docs(4),
     ['<C-Space>'] = cmp.mapping.complete(),
-    ['<CR>'] = cmp.mapping.confirm({ select = true }),
+    ['<CR>'] = cmp.mapping.confirm({
+      behavior = cmp.ConfirmBehavior.Replace,
+      select = true
+    }),
     ['<Tab>'] = cmp.mapping(function(fallback)
       if cmp.visible() then
         cmp.select_next_item()
+      elseif luasnip.expand_or_jumpable() then
+        luasnip.expand_or_jump()
       else
         fallback()
       end
@@ -269,22 +321,33 @@ cmp.setup({
     ['<S-Tab>'] = cmp.mapping(function(fallback)
       if cmp.visible() then
         cmp.select_prev_item()
+      elseif luasnip.jumpable(-1) then
+        luasnip.jump(-1)
       else
         fallback()
       end
     end, { 'i', 's' }),
   }),
-  sources = {
-    { name = 'nvim_lsp' },
-    { name = 'luasnip' },
-    { name = 'buffer' },
-    { name = 'path' },
+  sources = cmp.config.sources({
+    { name = 'nvim_lsp', priority = 1000 },
+    { name = 'luasnip', priority = 750 },
+    { name = 'buffer', priority = 500 },
+    { name = 'path', priority = 250 },
+  }),
+  experimental = {
+    ghost_text = true, -- Show inline completion suggestions
   },
 })
 
 -- Treesitter: Neovim 0.11 has built-in treesitter support
 -- Parsers can be installed with :TSInstall <language>
 -- Example: :TSInstall c cpp lua vim vimdoc query
+vim.api.nvim_create_autocmd('FileType', {
+  callback = function(args)
+    -- Fall back to regular syntax highlighting when no parser is installed.
+    pcall(vim.treesitter.start, args.buf)
+  end,
+})
 
 -- Telescope setup with better path display
 require('telescope').setup({
@@ -332,17 +395,70 @@ require('telescope').setup({
         },
       },
     },
+    diagnostics = {
+      layout_config = {
+        horizontal = {
+          width = 0.95,
+          preview_width = 0.65,  -- More space for full diagnostic message
+        },
+      },
+      line_width = 'full',  -- Don't truncate lines in results
+    },
   },
 })
 
 -- Telescope keybindings
 local telescope = require('telescope.builtin')
+local live_grep_state = {
+  glob_pattern = nil,
+  ignore_case = false,
+}
+
+local function live_grep_with_state()
+  telescope.live_grep({
+    glob_pattern = live_grep_state.glob_pattern,
+    additional_args = function()
+      if live_grep_state.ignore_case then
+        return { '--ignore-case' }
+      end
+      return {}
+    end,
+  })
+end
+
+local function set_live_grep_glob()
+  vim.ui.input({
+    prompt = 'Live grep file glob (example: *.lua, *.{ts,tsx}; empty = all): ',
+    default = live_grep_state.glob_pattern or '',
+  }, function(input)
+    if input == nil then
+      return
+    end
+
+    local trimmed = vim.trim(input)
+    live_grep_state.glob_pattern = trimmed ~= '' and trimmed or nil
+    vim.notify(
+      'Live grep file filter: ' .. (live_grep_state.glob_pattern or 'all files'),
+      vim.log.levels.INFO
+    )
+  end)
+end
+
+local function toggle_live_grep_case()
+  live_grep_state.ignore_case = not live_grep_state.ignore_case
+  local mode = live_grep_state.ignore_case and 'ignore-case (-i)' or 'smart-case (default)'
+  vim.notify('Live grep case mode: ' .. mode, vim.log.levels.INFO)
+end
+
 vim.keymap.set('n', '<leader>ff', telescope.find_files, { desc = 'Find files' })
-vim.keymap.set('n', '<leader>fg', telescope.live_grep, { desc = 'Live grep' })
+vim.keymap.set('n', '<leader>fg', live_grep_with_state, { desc = 'Live grep (with filters)' })
+vim.keymap.set('n', '<leader>ft', set_live_grep_glob, { desc = 'Set live grep file glob' })
+vim.keymap.set('n', '<leader>fc', toggle_live_grep_case, { desc = 'Toggle live grep case mode' })
 vim.keymap.set('n', '<leader>fb', telescope.buffers, { desc = 'Find buffers' })
 vim.keymap.set('n', '<leader>fh', telescope.help_tags, { desc = 'Help tags' })
 vim.keymap.set('n', '<leader>fs', telescope.lsp_document_symbols, { desc = 'Document symbols' })
 vim.keymap.set('n', '<leader>fw', telescope.lsp_workspace_symbols, { desc = 'Workspace symbols' })
+vim.keymap.set('n', '<leader>fd', telescope.diagnostics, { desc = 'Diagnostics' })
 
 -- File explorer
 require('nvim-tree').setup()
@@ -351,7 +467,7 @@ vim.keymap.set('n', '<leader>e', ':NvimTreeToggle<CR>', { desc = 'Toggle file ex
 -- Status line
 require('lualine').setup({
   options = {
-    theme = 'tokyonight',
+    theme = 'gruvbox',
     icons_enabled = true,
   }
 })
@@ -390,19 +506,28 @@ require('gitsigns').setup({
       gs.toggle_linehl()
     end, {buffer=bufnr, desc='Toggle deleted lines & highlights'})
 
-    -- Toggle between comparing to HEAD vs develop branch
-    local comparing_to_develop = false
+    -- Toggle between comparing to HEAD vs main branch (auto-detected or 'develop')
+    local comparing_to_main = false
     vim.keymap.set('n', '<leader>gm', function()
-      if comparing_to_develop then
+      if comparing_to_main then
         gs.change_base('HEAD', true)
-        comparing_to_develop = false
+        comparing_to_main = false
         vim.notify('Comparing to HEAD', vim.log.levels.INFO)
       else
-        gs.change_base('develop', true)
-        comparing_to_develop = true
-        vim.notify('Comparing to develop', vim.log.levels.INFO)
+        local directory = vim.fs.dirname(vim.api.nvim_buf_get_name(bufnr))
+        local result = vim.system({ 'git', '-C', directory, 'symbolic-ref',
+          '--short', 'refs/remotes/origin/HEAD' }, { text = true }):wait()
+        local base = result.code == 0 and vim.trim(result.stdout) or nil
+        if not base or base == '' then
+          vim.notify('No origin default branch. Run git remote set-head origin -a.', vim.log.levels.WARN)
+          return
+        end
+
+        gs.change_base(base, true)
+        comparing_to_main = true
+        vim.notify('Comparing to ' .. base, vim.log.levels.INFO)
       end
-    end, {buffer=bufnr, desc='Toggle compare HEAD vs develop'})
+    end, {buffer=bufnr, desc='Toggle compare HEAD vs main branch'})
   end,
 })
 
@@ -438,6 +563,9 @@ require('conform').setup({
 vim.keymap.set('n', '<leader>w', ':w<CR>', { desc = 'Save' })
 vim.keymap.set('n', '<leader>q', ':q<CR>', { desc = 'Quit' })
 vim.keymap.set('n', '<Esc>', ':nohlsearch<CR>', { desc = 'Clear search highlight' })
+
+-- LazyGit
+vim.keymap.set('n', '<leader>gg', ':LazyGit<CR>', { desc = 'Open LazyGit' })
 
 -- Buffer navigation
 vim.keymap.set('n', '<leader>bn', ':bnext<CR>', { desc = 'Next buffer' })

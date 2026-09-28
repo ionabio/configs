@@ -1,6 +1,55 @@
 # Personal Configs
 
-Configuration files for Neovim, WezTerm, and GlazeWM.
+Windows configuration for WezTerm, Neovim, PowerShell, Oh My Posh, and optional GlazeWM.
+
+## Install or update on another PC
+
+This repository is the complete setup. `ionabio/nvim-config` remains an editor-only mirror.
+
+Prerequisites: PowerShell 7, Git, WezTerm, Neovim 0.11.5+, and the JetBrainsMono Nerd Font
+(font family `JetBrainsMono NF`). Install ripgrep on your normal user PATH for text search;
+an `rg` available only inside Codex is not sufficient. Oh My Posh and LazyGit are optional
+(needed for the themed prompt and `Space gg`). Git Bash uses the standard Git for Windows
+location, `C:\Program Files\Git\bin\bash.exe`.
+
+```powershell
+git clone https://github.com/ionabio/configs.git
+cd configs
+pwsh -NoProfile -File .\install.ps1 -WhatIf
+pwsh -NoProfile -File .\install.ps1
+```
+
+For later updates, run `git pull --ff-only` here and run `install.ps1` again.
+The installer copies configs and backs up changed destination files under
+`~/.config-backups/<timestamp>`. It preserves the existing Neovim Git repository and
+other files. The PowerShell profile is replaced with the tracked profile; merge any
+PC-specific customizations from its backup. Existing extra Neovim config files may still
+affect startup. Close Neovim before installing, then open a fresh terminal afterwards.
+Use `-IncludeGlazeWM` only when you also want the window-manager config applied.
+
+In Neovim run `:Lazy restore` to use the committed plugin versions. Use `:Mason` to
+check clangd and Lua language-server installation. Run `:MasonInstall stylua` for Lua
+formatting. Treesitter is pinned to the tested
+Neovim 0.11-compatible revision; install parsers with `:TSInstall c cpp lua vim vimdoc query`
+(requires a working C compiler and tree-sitter CLI; with Node.js installed, use
+`npm install --global tree-sitter-cli@0.27.0`). Format-on-save remains enabled;
+external formatters such as clang-format, stylua, isort and black must be installed
+separately for their respective languages. `:checkhealth` helps diagnose missing tools.
+
+## Everyday starting points
+
+- Open a project: `cd <project>` then `nvim .`.
+- `Space ff`: find files; `Space fg`: search text; `Space e`: file tree.
+- `Space ft`: set the search file glob; `Space fc`: toggle search case handling.
+- `Space gg`: LazyGit; `Space w`: save; `Space q`: quit.
+- WezTerm `Ctrl+Shift+O`: open a selected path, optionally ending in `:line:column`.
+  This opens a fresh Neovim split so an existing editor's mode or unsaved buffer is safe.
+  Relative paths use the source pane's working directory, not a fixed project checkout.
+- WezTerm `Ctrl+Shift+P`: command palette.
+
+The cleanup preserves the local Gruvbox theme, search filters and Git shortcuts.
+The old `ClearSwap` command was removed because it could discard recovery files for
+other editor sessions. Use Neovim's normal swap recovery prompts instead.
 
 ## Layout
 
@@ -9,6 +58,8 @@ Configuration files for Neovim, WezTerm, and GlazeWM.
 | Neovim | `neovim/nvim` | `%LOCALAPPDATA%\nvim` |
 | WezTerm | `wezterm/.wezterm.lua` | `%USERPROFILE%\.wezterm.lua` |
 | GlazeWM | `glazewm/config.yaml` | `%USERPROFILE%\.glzr\glazewm\config.yaml` |
+| PowerShell | `powershell/Microsoft.PowerShell_profile.ps1` | `$PROFILE` in PowerShell 7 |
+| Oh My Posh | `ohmyposh/simple-prompt.json` | `%USERPROFILE%\.config\ohmyposh\simple-prompt.json` |
 
 ## Neovim Shortcuts
 
@@ -85,7 +136,7 @@ In buffers with an attached LSP, `<C-k>` opens signature help instead of moving 
 | `<leader>gp` | Preview git hunk |
 | `<leader>gb` | Show full blame for current line |
 | `<leader>gd` | Toggle deleted lines and line highlights |
-| `<leader>gm` | Toggle gitsigns comparison between `HEAD` and `develop` |
+| `<leader>gm` | Toggle gitsigns comparison between `HEAD` and the repository's `origin/HEAD` |
 | `<leader>xx` | Toggle workspace diagnostics in Trouble |
 | `<leader>xX` | Toggle current-buffer diagnostics in Trouble |
 | `<leader>cs` | Toggle symbols in Trouble |

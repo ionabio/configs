@@ -2,6 +2,11 @@
 
 My personal Neovim setup with LSP, Telescope, and modern plugins.
 
+For the complete Windows terminal setup and backup-aware installer, use
+[ionabio/configs](https://github.com/ionabio/configs). This editor-only repository
+mirrors its `neovim/nvim` directory. After pulling, run `:Lazy restore` to restore
+the tested plugin revisions. Treesitter is pinned for Neovim 0.11 compatibility.
+
 ## Installation
 
 1. Install Neovim 0.11+
@@ -105,7 +110,7 @@ In buffers with an attached LSP, `<C-k>` opens signature help instead of moving 
 | `<leader>gp` | Preview git hunk |
 | `<leader>gb` | Show full blame for current line |
 | `<leader>gd` | Toggle deleted lines and line highlights |
-| `<leader>gm` | Toggle gitsigns comparison between `HEAD` and `develop` |
+| `<leader>gm` | Toggle gitsigns comparison between `HEAD` and the repository's `origin/HEAD` |
 | `<leader>xx` | Toggle workspace diagnostics in Trouble |
 | `<leader>xX` | Toggle current-buffer diagnostics in Trouble |
 | `<leader>cs` | Toggle symbols in Trouble |

@@ -7,14 +7,13 @@ local git_bash = { 'C:\\Program Files\\Git\\bin\\bash.exe', '--login', '-i' }
 local git_bash_env = { CHERE_INVOKING = '1', MSYSTEM = 'MINGW64' }
 
 -- Editor (explicit)
-local micro_exe = 'nvim'
+local editor_exe = 'nvim'
 
 local function url_decode(s)
     if not s then
         return nil
     end
 
-    s = s:gsub('+', ' ')
     s = s:gsub('%%(%x%x)', function(hex)
         return string.char(tonumber(hex, 16))
     end)
@@ -34,74 +33,43 @@ local function parse_query(q)
     return params
 end
 
--- Helper function to open a file path in neovim (reuses existing pane or creates split)
+-- Open in a fresh split: never inject commands into an editor with unsaved work.
 local function open_in_nvim(window, pane, file_path, line, col)
-    if not file_path or file_path == '' then
+    if not file_path or file_path == '' or file_path:find('[%c]') then
         return
     end
-
-    -- If line/col not provided, try to parse from file_path
+    file_path = file_path:match('^%s*(.-)%s*$')
     if not line then
-        local path_only, line_str, col_str = file_path:match('^(.+):(%d+):?(%d*)$')
-        if path_only then
-            file_path = path_only
-            line = tonumber(line_str)
-            col = tonumber(col_str)
+        local path, row, column = file_path:match('^(.-):(%d+):(%d+)$')
+        if not path then
+            path, row = file_path:match('^(.-):(%d+)$')
+        end
+        if path then
+            file_path, line, col = path, tonumber(row), tonumber(column)
         end
     end
-
-    local args = { micro_exe }
+    file_path = file_path:gsub('^"(.*)"$', '%1'):gsub("^'(.*)'$", '%1')
+    local args = { editor_exe }
     if line and line > 0 then
-        table.insert(args, '+' .. tostring(line))
-        if col and col > 0 then
-            table.insert(args, '+normal! ' .. tostring(col - 1) .. '|')
-        end
+        table.insert(args, '+call cursor(' .. math.floor(line) .. ',' .. math.max(1, math.floor(col or 1)) .. ')')
     end
+    table.insert(args, '--')
     table.insert(args, file_path)
-
-    -- Try to find an existing neovim pane
-    local tab = window:active_tab()
-    local nvim_pane = nil
-
-    if tab then
-        for _, p in ipairs(tab:panes()) do
-            local process_name = p:get_foreground_process_name()
-            if process_name and process_name:find('nvim') then
-                nvim_pane = p
-                break
-            end
-        end
-    end
-
-    if nvim_pane then
-        -- Send command to existing neovim pane
-        nvim_pane:activate()
-        local nvim_cmd = ':edit '
-        if line and line > 0 then
-            nvim_cmd = nvim_cmd .. '+' .. tostring(line) .. ' '
-            if col and col > 0 then
-                nvim_cmd = nvim_cmd .. '+normal!\\ ' .. tostring(col - 1) .. '\\| '
-            end
-        end
-        nvim_cmd = nvim_cmd .. file_path .. '\r'
-        nvim_pane:send_text(nvim_cmd)
-    else
-        -- Create new vertical split
-        window:perform_action(wezterm.action.SplitHorizontal { args = args }, pane)
-    end
+    -- SpawnCommand inherits the source pane's working directory.
+    window:perform_action(wezterm.action.SplitHorizontal { args = args }, pane)
 end
 
--- Open micro:// links inside wezterm; prevent the default OS handler
+-- Handle editor links (including old micro:// links in scrollback).
 wezterm.on('open-uri', function(window, pane, uri)
     if type(uri) ~= 'string' then
         return
     end
 
-    if not uri:match('^micro://') then
+    if not uri:match('^nvim://') and not uri:match('^micro://') then
         return
     end
 
-    local target, query = uri:match('^micro://([^?]*)%??(.*)$')
+    local target, query = uri:match('^%w+://([^?]*)%??(.*)$')
     if target ~= 'open' then
         return
     end
@@ -138,7 +106,7 @@ config.window_padding = { left = 10, right = 10, top = 10, bottom = 10 }
 -- Launcher menu
 config.launch_menu = {
     { label = 'PowerShell', args = pwsh },
-    { label = 'Git Bash',   args = git_bash },
+    { label = 'Git Bash', args = git_bash, set_environment_variables = git_bash_env },
 }
 
 config.keys = {
@@ -229,28 +197,28 @@ config.mouse_bindings = {
 
 -- Link rules (no lookbehind)
 local rules = {
-    -- Repo-root relative paths with line numbers
+    -- Pane-working-directory relative paths with line numbers
     {
-        regex = [[(^|[\s\(\[\{<"'`])((?:src|include|Resource|cmake|shared)/[^\s:]+):(\d+)]],
-        format = 'micro://open?path=C:/Development/Aim/aim_gitlab/aimsport-vision/$2&line=$3',
+        regex = [[(^|[\s\(\[\{<"'`])((?:src|include|Resource|cmake|shared)/[^\s:&?#%]+):(\d+)]],
+        format = 'nvim://open?path=$2&line=$3',
     },
 
-    -- Repo-root relative paths without line numbers
+    -- Pane-working-directory relative paths without line numbers
     {
-        regex = [[(^|[\s\(\[\{<"'`])((?:src|include|Resource|cmake|shared)/[^\s]+)]],
-        format = 'micro://open?path=C:/Development/Aim/aim_gitlab/aimsport-vision/$2',
+        regex = [[(^|[\s\(\[\{<"'`])((?:src|include|Resource|cmake|shared)/[^\s:&?#%]+)]],
+        format = 'nvim://open?path=$2',
     },
 
     -- Absolute Windows paths with line numbers
     {
-        regex = [[(^|[\s\(\[\{<"'`])([A-Za-z]:/[^\s:]+):(\d+)]],
-        format = 'micro://open?path=$2&line=$3',
+        regex = [[(^|[\s\(\[\{<"'`])([A-Za-z]:/[^\s:&?#%]+):(\d+)]],
+        format = 'nvim://open?path=$2&line=$3',
     },
 
     -- Absolute Windows paths without line numbers
     {
-        regex = [[(^|[\s\(\[\{<"'`])([A-Za-z]:/[^\s]+)]],
-        format = 'micro://open?path=$2',
+        regex = [[(^|[\s\(\[\{<"'`])([A-Za-z]:/[^\s:&?#%]+)]],
+        format = 'nvim://open?path=$2',
     },
 }
 
