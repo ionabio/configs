@@ -16,6 +16,9 @@ if not vim.uv.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+-- Keep undo history after closing and reopening a file.
+vim.opt.undofile = true
+
 -- Basic Settings
 vim.g.mapleader = " " -- Set leader key to space
 vim.g.maplocalleader = " "

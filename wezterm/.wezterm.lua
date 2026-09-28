@@ -39,6 +39,7 @@ local function open_in_nvim(window, pane, file_path, line, col)
         return
     end
     file_path = file_path:match('^%s*(.-)%s*$')
+    file_path = file_path:gsub('^"(.*)"$', '%1'):gsub("^'(.*)'$", '%1')
     if not line then
         local path, row, column = file_path:match('^(.-):(%d+):(%d+)$')
         if not path then
@@ -49,6 +50,7 @@ local function open_in_nvim(window, pane, file_path, line, col)
         end
     end
     file_path = file_path:gsub('^"(.*)"$', '%1'):gsub("^'(.*)'$", '%1')
+    if file_path == '' then return end
     local args = { editor_exe }
     if line and line > 0 then
         table.insert(args, '+call cursor(' .. math.floor(line) .. ',' .. math.max(1, math.floor(col or 1)) .. ')')
@@ -63,6 +65,12 @@ end
 wezterm.on('open-uri', function(window, pane, uri)
     if type(uri) ~= 'string' then
         return
+    end
+
+    -- Raw path links keep &, #, % and + literal instead of treating them as a query.
+    if uri:sub(1, 10) == 'nvim-path:' then
+        open_in_nvim(window, pane, uri:sub(11))
+        return false
     end
 
     if not uri:match('^nvim://') and not uri:match('^micro://') then
@@ -110,6 +118,13 @@ config.launch_menu = {
 }
 
 config.keys = {
+    { key = 'Tab', mods = 'CTRL', action = wezterm.action.ActivateTabRelative(1) },
+    { key = 'Tab', mods = 'CTRL|SHIFT', action = wezterm.action.ActivateTabRelative(-1) },
+    { key = '+', mods = 'CTRL|SHIFT', action = wezterm.action.IncreaseFontSize },
+    { key = '=', mods = 'CTRL', action = wezterm.action.IncreaseFontSize },
+    { key = '-', mods = 'CTRL', action = wezterm.action.DecreaseFontSize },
+    { key = '0', mods = 'CTRL', action = wezterm.action.ResetFontSize },
+
     -- Open selection as file path in neovim
     {
         key = 'o',
@@ -195,30 +210,20 @@ config.mouse_bindings = {
     },
 }
 
--- Link rules (no lookbehind)
+-- Quoted paths may include spaces. Keep the entire path/location in a raw URI;
+-- a query-string format cannot safely represent arbitrary Windows filenames.
 local rules = {
-    -- Pane-working-directory relative paths with line numbers
     {
-        regex = [[(^|[\s\(\[\{<"'`])((?:src|include|Resource|cmake|shared)/[^\s:&?#%]+):(\d+)]],
-        format = 'nvim://open?path=$2&line=$3',
+        regex = [[(^|[\s\(\[\{<])("(?:[A-Za-z]:[/\\]|(?:src|include|Resource|cmake|shared)[/\\])[^"\r\n]+"(?::\d+(?::\d+)?)?)]],
+        format = 'nvim-path:$2',
     },
-
-    -- Pane-working-directory relative paths without line numbers
     {
-        regex = [[(^|[\s\(\[\{<"'`])((?:src|include|Resource|cmake|shared)/[^\s:&?#%]+)]],
-        format = 'nvim://open?path=$2',
+        regex = [[(^|[\s\(\[\{<])('(?:[A-Za-z]:[/\\]|(?:src|include|Resource|cmake|shared)[/\\])[^'\r\n]+'(?::\d+(?::\d+)?)?)]],
+        format = 'nvim-path:$2',
     },
-
-    -- Absolute Windows paths with line numbers
     {
-        regex = [[(^|[\s\(\[\{<"'`])([A-Za-z]:/[^\s:&?#%]+):(\d+)]],
-        format = 'nvim://open?path=$2&line=$3',
-    },
-
-    -- Absolute Windows paths without line numbers
-    {
-        regex = [[(^|[\s\(\[\{<"'`])([A-Za-z]:/[^\s:&?#%]+)]],
-        format = 'nvim://open?path=$2',
+        regex = [[(^|[\s\(\[\{<])((?:[A-Za-z]:[/\\]|(?:src|include|Resource|cmake|shared)[/\\])[^\s"'<>`]+)]],
+        format = 'nvim-path:$2',
     },
 }
 

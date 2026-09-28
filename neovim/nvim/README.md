@@ -6,6 +6,8 @@ For the complete Windows terminal setup and backup-aware installer, use
 [ionabio/configs](https://github.com/ionabio/configs). This editor-only repository
 mirrors its `neovim/nvim` directory. After pulling, run `:Lazy restore` to restore
 the tested plugin revisions. Treesitter is pinned for Neovim 0.11 compatibility.
+Persistent undo is enabled: saved edits can be undone after closing and reopening
+Neovim. Undo files use Neovim's default undo directory.
 
 ## Installation
 

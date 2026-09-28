@@ -7,7 +7,7 @@ Windows configuration for WezTerm, Neovim, PowerShell, Oh My Posh, and optional 
 This repository is the complete setup. `ionabio/nvim-config` remains an editor-only mirror.
 
 Prerequisites: PowerShell 7, Git, WezTerm, Neovim 0.11.5+, and the JetBrainsMono Nerd Font
-(font family `JetBrainsMono NF`). Install ripgrep on your normal user PATH for text search;
+(font family `JetBrainsMono Nerd Font`, also known as `JetBrainsMono NF`). Install ripgrep on your normal user PATH for text search;
 an `rg` available only inside Codex is not sufficient. Oh My Posh and LazyGit are optional
 (needed for the themed prompt and `Space gg`). Git Bash uses the standard Git for Windows
 location, `C:\Program Files\Git\bin\bash.exe`.
@@ -20,10 +20,17 @@ pwsh -NoProfile -File .\install.ps1
 ```
 
 For later updates, run `git pull --ff-only` here and run `install.ps1` again.
+Before changing files, the installer checks PowerShell, Git, Neovim, WezTerm and ripgrep
+versions/availability. Missing required tools stop installation; missing fonts and
+optional tools produce guidance. `-SkipPrerequisiteCheck` is available for staging
+configs into an isolated directory, not a substitute for installing dependencies.
 The installer copies configs and backs up changed destination files under
 `~/.config-backups/<timestamp>`. It preserves the existing Neovim Git repository and
 other files. The PowerShell profile is replaced with the tracked profile; merge any
-PC-specific customizations from its backup. Existing extra Neovim config files may still
+PC-specific customizations from its backup. A conflicting `init.vim` is backed up,
+verified, and removed before installing `init.lua`; `-WhatIf` leaves it untouched.
+Custom `NVIM_APPNAME`/`XDG_CONFIG_HOME` layouts are rejected to avoid installing to the
+wrong directory. Existing extra Neovim config files may still
 affect startup. Close Neovim before installing, then open a fresh terminal afterwards.
 Use `-IncludeGlazeWM` only when you also want the window-manager config applied.
 
@@ -46,6 +53,27 @@ separately for their respective languages. `:checkhealth` helps diagnose missing
   This opens a fresh Neovim split so an existing editor's mode or unsaved buffer is safe.
   Relative paths use the source pane's working directory, not a fixed project checkout.
 - WezTerm `Ctrl+Shift+P`: command palette.
+- WezTerm `Ctrl+Tab` / `Ctrl+Shift+Tab`: next / previous tab.
+- WezTerm `Ctrl+=` / `Ctrl+-`: increase / decrease font size;
+  `Ctrl+0`: reset font size.
+- Undo history survives closing and reopening Neovim (stored in Neovim's default
+  undo directory). This is separate from unsaved-file recovery and backups.
+
+File opening accepts quoted paths, Windows backslashes, and `:line:column` locations.
+Generated file hyperlinks keep `&`, `#`, `%`, and `+` literal. Paths with spaces must be
+quoted for automatic hyperlink detection, or selected in full with `Ctrl+Shift+O`.
+
+## Regression checks
+
+Run from the repository root (PowerShell 7, Neovim and ripgrep required):
+
+```powershell
+nvim --headless -u NONE -l tests/wezterm.lua
+pwsh -NoProfile -File tests/hyperlinks.ps1
+pwsh -NoProfile -File tests/installer.ps1
+```
+
+Installer tests use temporary destinations and preserve their artifacts for inspection.
 
 The cleanup preserves the local Gruvbox theme, search filters and Git shortcuts.
 The old `ClearSwap` command was removed because it could discard recovery files for

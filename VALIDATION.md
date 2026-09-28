@@ -24,3 +24,14 @@ process-only variables for validation resolves that warning without changing use
 environment settings.
 
 No interactive GUI shortcut sweep or clean-machine bootstrap was performed.
+
+## Robustness follow-up
+
+- Added reproducible tests under `tests/`: 13 file-opening cases, 8 complete
+  hyperlink matches, and tab/font shortcut assertions pass.
+- Installer tests pass for dry-run preservation, verified `init.vim` backups,
+  idempotence, missing-tool refusal before any writes, and old-version rejection.
+- Required tools/version checks pass on this PC; WezTerm accepts the updated config.
+- A separate Neovim process reopened a saved test file and successfully restored its
+  original content using persistent undo.
+- These remain headless and isolated installer checks, not an interactive GUI sweep.
